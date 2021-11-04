@@ -4,7 +4,7 @@ git init
 git add *
 git commit -m "init"
 
-git remote add origin git@github.com:Auto-ML/nesc_coo.git
+git remote add origin git@github.com:Auto-ML/nesc-coo.git
 git branch -M master
 git push -u origin master
 # git remote remove origin
