@@ -8,42 +8,68 @@
 # @Software     : PyCharm
 # @Description  :
 
-
+from urllib import parse
 from docxtpl import DocxTemplate, RichText
 
 from meutils.pipe import *
+from meutils.str_utils import arabic2chinese
 from meutils.date_utils import date_difference
-
-_mapping = '一二三四五六七八九十'
-
-date = date_difference(fmt='%Y年%m月%d日')
-year = date[:4]
-
-############################################################
 from meutils.request_utils.crawler import Crawler
 
-url_ = "http://www.csrc.gov.cn/pub/newsite/zjhxwfb/xwdd"
-c = Crawler(url_)
-
-urls = c.xpath('//*[@id="myul"]/li[*]//@href')
-titles = c.xpath('//*[@id="myul"]/li[*]/a//text()')
-
-监管动态 = {}
-for idx, title, url in tqdm(zip(_mapping, titles, urls)):
-    url = url.replace('.', url_, 1)
-    lines = Crawler(url).xpath("""//*[@class="Custom_UnionStyle"]//text()""")
-    监管动态[f'{idx}、{title}'] = lines | xjoin('')
-    # break
-
 
 ############################################################
+def get_context(url, xpath_map, date, body_xpath="""//*[@class="Custom_UnionStyle"]//text()"""):
+    c = Crawler(url)
+
+    context = {}
+    for idx, (title_, url_, date_) in enumerate(zip(*[c.xpath(v) for k, v in xpath_map.items()]), 1):
+        if date_.strip() == date:
+            url_ = parse.urljoin(url, url_)
+            lines = Crawler(url_).xpath(body_xpath)
+            context[f'{arabic2chinese(idx)[1]}、{title_}'] = ''.join(lines).strip()
+    return context
+
+
+# url = "http://www.csrc.gov.cn/pub/newsite/zjhxwfb/xwdd/"
+# xpath_map = {
+#     'titles': '//*[@id="myul"]/li[*]/a//text()',
+#     'urls': '//*[@id="myul"]/li[*]//@href',
+#     'dates': '//*[@id="myul"]/li[*]/span//text()'
+# }
+
+url = "http://www.csrc.gov.cn/pub/newsite/zxgx/jigbsdt/"
+xpath_map = {
+    'titles': '/html/body/div/div/div[5]/div[2]/div/div[2]/ul/li[*]/a//text()',
+    'urls': '/html/body/div/div/div[5]/div[2]/div/div[2]/ul/li[*]/a//@href',
+    'dates': '/html/body/div/div/div[5]/div[2]/div/div[2]/ul/li[*]/span//text()'
+}
+监管动态 = get_context(url, xpath_map, '2021-11-04')
+
+url = "http://www.csrc.gov.cn/pub/newsite/zqjjjgjgb/thywwgcfxx/jgb_xzjgl/"
+xpath_map = {
+    'titles': '//*[@id="myul"]/li[*]/a//text()',
+    'urls': '//*[@id="myul"]/li[*]/a//@href',
+    'dates': '//*[@id="myul"]/li[*]/span//text()'
+}
+法律法规跟踪 = get_context(url, xpath_map, '2021-10-15')
+
+############################################################
+date = date_difference(fmt='%Y年%m月%d日')
+year = date[:4]
 context = {
     'year': year,
     'date': date,
     '监管动态': 监管动态,
-    '法律法规跟踪': {},
+    '法律法规跟踪': 法律法规跟踪,
 }
 
 doc = DocxTemplate('合规日报模板.docx')
 doc.render(context)
 doc.save('合规日报模板_.docx')
+
+
+# from meutils.notice.wecom import Wecom
+#
+# Wecom('b1424470-f377-4d13-a2c8-b2c4014687c1').send_file('合规日报模板_.docx')
+
+
